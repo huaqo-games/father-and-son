@@ -1,25 +1,18 @@
-CC = g++
-SRCS = $(wildcard src/*.cpp)
-OBJS = $(patsubst src/%.cpp, bin/%.o, $(SRCS))
-HDRS = $(wildcard include/*.h)
-INCLUDE_PATHS = -Iinclude
-LIBRARY_PATHS = -Llib
-FRAMEWORKS = -framework CoreVideo -framework IOKit -framework Cocoa -framework GLUT -framework OpenGL
-LIBS = lib/libraylib.a
-OUTFILE = bin/build_osx
-FLAGS = -std=c++17
-all: build run
+CXX = g++
+CXXFLAGS = -Wall -std=c++17
+INCLUDE_PATH = -I./include -I/opt/homebrew/include
+LIB_PATH = -L/opt/homebrew/Cellar/raylib/5.0/lib
+LDFLAGS = -lraylib -framework OpenGL -framework Cocoa -framework IOKit
+TARGET = game
+SRC = $(wildcard src/*.cpp)
 
-bin/%.o: src/%.cpp $(HDRS)
-	$(CC) -c $< -o $@ $(FLAGS) $(INCLUDE_PATHS)
+all: $(TARGET)
 
-build: $(OBJS)
-	$(CC) $(OBJS) $(INCLUDE_PATHS) $(LIBRARY_PATHS) $(FRAMEWORKS) $(LIBS) -o $(OUTFILE)
-
-run: 
-	./$(OUTFILE)
+$(TARGET): $(SRC)
+	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(SRC) -o $(TARGET) $(LIB_PATH) $(LDFLAGS)
 
 clean:
-	rm -f $(OBJS) $(OUTFILE)
+	rm -f $(TARGET)
 
-.PHONY: all build run clean
+run: clean $(TARGET)
+	./$(TARGET)
