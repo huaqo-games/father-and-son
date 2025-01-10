@@ -1,5 +1,5 @@
 
-# Jump and Run
+# Father and Son
 
 ## Overview
 This Jump and Run game is a 2D platformer built using the [raylib](https://www.raylib.com/) library. Players navigate through levels filled with obstacles and challenges, aiming to reach the end goal while collecting points.
