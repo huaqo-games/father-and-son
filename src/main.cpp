@@ -182,7 +182,7 @@ int main(void) {
     // }
 
     InitAudioDevice();
-    Music music = LoadMusicStream("assets/soundtrack.wav");
+    Music music = LoadMusicStream("assets/soundtrack.mp3");
     PlayMusicStream(music);
     SetMusicVolume(music, 0.0f);
     
