@@ -1,15 +1,12 @@
-CXX = g++
-CXXFLAGS = -Wall -std=c++17
-INCLUDE_PATH = -I./include -I/opt/homebrew/include
-LIB_PATH = -L/opt/homebrew/Cellar/raylib/5.0/lib
-LDFLAGS = -lraylib -framework OpenGL -framework Cocoa -framework IOKit
+CXX = clang++
+FLAGS = -Wall -std=c++17 $(shell pkg-config --libs --cflags raylib)
 TARGET = game
-SRC = $(wildcard src/*.cpp)
+SRC = src/main.cpp
 
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CXX) $(CXXFLAGS) $(INCLUDE_PATH) $(SRC) -o $(TARGET) $(LIB_PATH) $(LDFLAGS)
+	$(CXX) $(FLAGS) $(SRC) -o $(TARGET)
 
 clean:
 	rm -f $(TARGET)

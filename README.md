@@ -10,11 +10,11 @@ To compile and run the game, ensure you have the following installed on your sys
 - **Make**: A build tool for automating the compilation process.
 - **C Compiler**: Ensure you have a C compiler like `gcc` or `clang` installed.
 
-## Building the Game
+## Building and run the Game
 To build the game, use the following command:
 
 ```bash
-make
+make run
 ```
 
 ## Troubleshooting

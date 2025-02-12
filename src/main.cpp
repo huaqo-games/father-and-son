@@ -1,350 +1,266 @@
-#include "raylib.h"
-#include <cmath>   // Changed to <cmath> for consistency
+#include <raylib.h>
 
-// Screen settings
-int screenWidth = 1280;
-int screenHeight = 720;
-const char *title = "Father and son";
-int FPS = 60;
-
-// Parallax distances
-float distanceBack = 40.0f;
-float distanceMid  = 20.0f;
-float distanceFore = 10.0f;
-
-// Character positioning
-float charSpriteHeight = 256.0f;
-float bottomSpace       = 64.0f;
-Vector2 charPos         = {
-    static_cast<float>(screenWidth) / 2.0f - 128.0f,
-    static_cast<float>(screenHeight) - (256.0f + 64.0f)
-};
-
-// Dialog & font
-int fontSize = 20;
-int steps    = 0;
-
-// Tints
-Color backgroundTint = {171, 157, 146, 100}; 
-Color midgroundTint  = {171, 157, 146, 130}; 
-Color foregroundTint = {171, 157, 146, 150}; 
-Color characterTint  = {171, 157, 146, 100}; 
-
-// Dialog struct and list
-typedef struct {
-    const char *text;
-    int next; 
-} Dialog;
-
-Dialog dialogs[] = {
-    {"Son: Father?",               1},
-    {"Father: Everything ok?",     2},
-    {"Son: When do we reach the coast?", 3},
-    {"Father: It will take some time.",  4},
-    {"Son: I am tired.",          -1}
-};
-
-const char *continueDialog = "[Press SPACE to continue]";
-
-// Simple control structure for movement
-struct Control {
-    int direction;
-    float speed;
-};
-
-// Get input function
-Control getInput() {
-    int direction = 1;
-    float speed   = 0.0f;
-
-    if (IsKeyDown(KEY_RIGHT)) {
-        speed     = 7.5f;
-        direction = 1;
-    }
-    else if (IsKeyDown(KEY_LEFT)) {
-        speed     = 7.5f;
-        direction = -1;
-    }
-    else {
-        speed     = 0.0f;
-        direction = 1;
-    }
-    
-    Control input;
-    input.direction = direction;
-    input.speed     = speed;
-    return input;
-}
-
-// Character class
-class Character {
+class Player
+{
 private:
-    Texture2D sprite;
-    Rectangle frameRec;
-    Vector2 position;
-    int framesCounter;
-    int currentFrame;
-    int framesSpeed;
+    Vector2 position = {0, 0};
+    Vector2 spriteSize = {1.0f, 1.0f};
+    Texture2D texture = {0};
+    Rectangle frameRec = {0.0f, 0.0f, 0.0f, 0.0f};
+    float scale = 1.0f;
+    bool loaded = false;
+    int currentFrame = 0;
+    int framesCounter = 0;
+    int framesSpeed = 8;  
 
 public:
-    Character(const char* filePath, Vector2 pos) {
-        sprite        = LoadTexture(filePath);
-        position      = pos;
-        frameRec      = {0.0f, 0.0f, static_cast<float>(sprite.width) / 6, static_cast<float>(sprite.height)};
-        framesCounter = 0;
-        currentFrame  = 0;
-        framesSpeed   = 0;
+    Player() = default;
+
+    Player(const char *path, Vector2 textureGrid)
+    {
+        load(path, textureGrid);
     }
 
-    ~Character() {
-        UnloadTexture(sprite);
+    void load(const char *path, Vector2 textureGrid)
+    {
+        texture = LoadTexture(path);
+        spriteSize.x = texture.width / textureGrid.x;
+        spriteSize.y = texture.height / textureGrid.y;
+        frameRec = {0.0f, 0.0f, spriteSize.x, spriteSize.y};
+        scale = GetScreenHeight() / texture.height / 2.0f;
+        loaded = true;
+        position = {0,0};
     }
 
-    void Update(int direction, float speed) {
-        if (direction != 0) {
-            framesSpeed = 30;
+    ~Player()
+    {
+        if (loaded)
+        {
+            UnloadTexture(texture);
         }
-        else {
-            framesSpeed  = 0;
-            currentFrame = 4; // Idle frame
-        }
-        
+    }
+
+    void update()
+    {
         framesCounter++;
 
-        // Advance frame if enough time (frames) has passed
-        if (framesSpeed > 0 && framesCounter >= (480 / framesSpeed)) {
+        if (framesCounter >= (60/framesSpeed))
+        {
             framesCounter = 0;
             currentFrame++;
+
             if (currentFrame > 5) currentFrame = 0;
-            frameRec.x = static_cast<float>(currentFrame) * (sprite.width / 6.0f);
+
+            frameRec.x = (float)currentFrame * spriteSize.x;
+        }
+
+        if (IsKeyDown(KEY_RIGHT)){
+            position.x += 2.0f;
+            frameRec.width = spriteSize.x;
+        }
+
+        if (IsKeyDown(KEY_LEFT)){
+            position.x -= 2.0f;
+            frameRec.width = -spriteSize.x;
+        }
+        if (IsKeyDown(KEY_DOWN)){
+            position.y += 2.0f;
+        }
+        if (IsKeyDown(KEY_UP)){
+            position.y -= 2.0f;
+        }
+
+        scale = GetScreenHeight() / texture.height / 2.0f;
+        
+    }
+
+    void draw()
+    {
+        if (loaded)
+        {
+            Rectangle dest = {position.x, position.y, spriteSize.x * scale, spriteSize.y * scale};
+            Vector2 origin = {0.0f, 0.0f};
+            DrawTexturePro(texture, frameRec, dest, origin, 0.0f, WHITE);
         }
     }
 
-    void Draw(int direction) {
-        Rectangle sourceRec = frameRec;
-        // Flip horizontally if moving left
-        if (direction == -1) {
-            sourceRec.width *= -1;
-        }
-        DrawTextureRec(sprite, sourceRec, position, WHITE);
-    }
+
+    Vector2 getPosition() { return position; }
+    Vector2 getSpriteSize() { return spriteSize; }
+    float getScale() { return scale;}
 };
 
-// Background class
-class Background { 
+///////////////////////////////////////////////////////////////////////////
+
+class Background
+{
 private:
-    Texture2D texture;
+    Texture2D texture = {0};
     float scrolling = 0.0f;
-    float scale;
+    float scale = 1.0f;
+    bool loaded = false;
 
 public:
-    Background(const char* filePath, float initialScale = 1.0f) {
-        texture = LoadTexture(filePath);
-        scale   = initialScale;
+    Background() = default;
+
+    Background(const char *path) { load(path); }
+
+    void load(const char *path)
+    {
+        texture = LoadTexture(path);
+        scale = GetScreenHeight() / texture.height;
+        loaded = true;
     }
 
-    ~Background() {
-        UnloadTexture(texture);
-    }
-
-    Texture2D GetTexture() const {
-        return texture;
-    }
-
-    void Update(int direction, float speed, float distance) {
-        scrolling -= direction * (speed / distance);
-        float textureWidth = static_cast<float>(texture.width) * scale;
-
-        // Wrap scrolling
-        if (scrolling <= -textureWidth) {
-            scrolling += textureWidth;
-        }
-        else if (scrolling >= textureWidth) {
-            scrolling -= textureWidth;
+    ~Background()
+    {
+        if (loaded)
+        {
+            UnloadTexture(texture);
         }
     }
 
-    void Draw() {
-        float textureWidth = static_cast<float>(texture.width) * scale;
+    void update()
+    {
+        // updateScrolling();
+        scale = GetScreenHeight() / texture.height;
 
-        DrawTextureEx(texture, {scrolling - textureWidth, 0}, 0.0f, scale, WHITE);
-        DrawTextureEx(texture, {scrolling,               0}, 0.0f, scale, WHITE);
-        DrawTextureEx(texture, {scrolling + textureWidth,0}, 0.0f, scale, WHITE);
     }
 
-    void SetScale(float newScale) {
-        scale = newScale;
+    void draw()
+    {
+        if (!loaded)
+            return;
+        for (int i = -1; i <= 1; i++)
+        {
+            DrawTextureEx(texture, {scrolling + i * texture.width * scale, 0.0f}, 0.0f, scale, WHITE);
+        }
     }
 };
 
-// Helper to scale backgrounds to fill the screen
-void AdjustBackgroundScale(Background& bg) {
-    Texture2D texture = bg.GetTexture();
-    float scaleX      = static_cast<float>(GetScreenWidth())  / texture.width;
-    float scaleY      = static_cast<float>(GetScreenHeight()) / texture.height;
-    bg.SetScale(fmaxf(scaleX, scaleY));
-}
+///////////////////////////////////////////////////////////////////////////
 
-int main(void) {
-    // Initialize window
-    InitWindow(screenWidth, screenHeight, title);
-    SetTargetFPS(FPS);
+class CameraController
+{
+private:
+    Camera2D camera;
+    Vector2 center;
+    Vector2 targetOffset;
+    float transitionSpeed = 0.01f; // Speed of transition
 
-    // Load the custom radial-light shader
-    Shader radialLightShader = LoadShader(NULL, "shaders/radial_light.fs");
-    int lightPosLoc  = GetShaderLocation(radialLightShader, "lightPos");
-    int radiusLoc    = GetShaderLocation(radialLightShader, "radius");
-    int intensityLoc = GetShaderLocation(radialLightShader, "intensity");
+public:
 
-    // Example values
-    float torchRadius    = 1200.0f;   
-    float torchIntensity = 1.0f; 
+    void initialize(Vector2 position, Vector2 spriteSize)
+    {
+        center = {(GetScreenWidth() / 2.0f) - (spriteSize.x / 2.0f), (GetScreenHeight() / 2.0f) - (spriteSize.y / 2.0f)};
+        camera = {
+            .offset = center,
+            .target = position,
+            .rotation = 0.0f,
+            .zoom = 1.0f};
+        targetOffset = camera.offset;
+    }
 
-    // Create a render texture for the entire screen
-    RenderTexture2D mainTarget = LoadRenderTexture(screenWidth, screenHeight);
+    void update(Vector2 position, Vector2 spriteSize, float scale)
+    {
+        if (IsKeyDown(KEY_RIGHT))
+            targetOffset = {(GetScreenWidth() / 2.0f) - (spriteSize.x * scale / 2.0f) - (GetScreenWidth() / 4.0f), (GetScreenHeight() / 2.0f) - (spriteSize.y * scale / 2.0f)};
+        if (IsKeyDown(KEY_LEFT))
+            targetOffset = {(GetScreenWidth() / 2.0f) - (spriteSize.x * scale / 2.0f) + (GetScreenWidth() / 4.0f), (GetScreenHeight() / 2.0f) - (spriteSize.y * scale / 2.0f)};
+        if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_DOWN))
+            targetOffset = center; // Reset to center for vertical movement or no horizontal input.
 
-    // Audio setup
-    InitAudioDevice();
-    Music music = LoadMusicStream("assets/soundtrack.mp3");
-    PlayMusicStream(music);
-    SetMusicVolume(music, 0.0f);
+        // Smooth transition using LERP
+        camera.offset.x += (targetOffset.x - camera.offset.x) * transitionSpeed;
+        camera.offset.y += (targetOffset.y - camera.offset.y) * transitionSpeed;
 
-    // Create character and backgrounds
-    Character character("assets/father-and-son.png", charPos);
-    Background background("assets/background.png");
-    Background midground("assets/midground.png");
-    Background foreground("assets/foreground.png");
+        camera.target = position;
+    }
 
-    // Scale backgrounds
-    AdjustBackgroundScale(background);
-    AdjustBackgroundScale(midground);
-    AdjustBackgroundScale(foreground);
+    Camera2D getCamera() const { return camera; }
+};
 
-    // Dialog variables
-    int currentDialog = 0;  
-    bool dialogActive = true;
+///////////////////////////////////////////////////////////////////////////
 
-    // Main loop
-    while (!WindowShouldClose()) {
-        // Update music
-        UpdateMusicStream(music);
+class Game
+{
+private:
+    Player player;
+    Background background;
+    Background midground;
+    Background foreground;
+    CameraController camera;
 
-        // Get input
-        Control input = getInput();
-        
-        // Simple step counter
-        if (input.direction == 1 && input.speed == 7.5f) {
-            steps++;
-        }
+public:
+    Game() = default;
 
-        // Decrease torch radius slightly every frame
-        if (torchRadius > 1.0f) {
-            torchRadius -= 1.0f;
-            torchIntensity -= 0.001f;
-        }
-        else {
-            torchRadius = 0.01f;
-            torchIntensity = 0.001f;
+    void initialize()
+    {
+        player.load("assets/character.png", {4.0f, 12.0f});
+        // background.load("assets/background.png");
+        // midground.load("assets/midground.png");
+        // foreground.load("assets/foreground.png");
+        camera.initialize(player.getPosition(),player.getSpriteSize());
+    }
 
-        }
+    void update()
+    {
+        player.update();
+        camera.update(player.getPosition(),player.getSpriteSize(), player.getScale());
+        // background.update();
 
-        // Update character & backgrounds
-        character.Update(input.direction, input.speed);
-        background.Update(input.direction, input.speed, distanceBack);
-        midground.Update(input.direction, input.speed, distanceMid);
-        foreground.Update(input.direction, input.speed, distanceFore);
+    }
 
-        // 1) Draw entire scene to the offscreen texture
-        BeginTextureMode(mainTarget);
-            BeginDrawing();
-                ClearBackground(BLACK);
-                
-                // Draw backgrounds with tints
-                background.Draw();
-                DrawRectangle(0, 0, screenWidth, screenHeight, backgroundTint);
-
-                midground.Draw();
-                DrawRectangle(0, 0, screenWidth, screenHeight, midgroundTint);
-
-                foreground.Draw();
-                DrawRectangle(0, 0, screenWidth, screenHeight, foregroundTint);
-
-                // Draw character with an overall tint
-                character.Draw(input.direction);
-                DrawRectangle(0, 0, screenWidth, screenHeight, characterTint);
-            EndDrawing();
-        EndTextureMode();
-
-        // 2) Draw the offscreen texture with the radial-light shader
+    void render()
+    {
         BeginDrawing();
-            ClearBackground(BLACK);
-
-            // Torch position offset 
-            Vector2 torchPos;
-            if (input.direction == 1) {
-                torchPos = {charPos.x + 219.0f, charPos.y - 120.0f};
-            } else {
-                // If facing left, offset differently
-                torchPos = {charPos.x + (256.0f - 219.0f), charPos.y - 120.0f};
-            }
-
-            // Pass uniforms to shader
-            SetShaderValue(radialLightShader, lightPosLoc,  &torchPos,       SHADER_UNIFORM_VEC2);
-            SetShaderValue(radialLightShader, radiusLoc,    &torchRadius,    SHADER_UNIFORM_FLOAT);
-            SetShaderValue(radialLightShader, intensityLoc, &torchIntensity, SHADER_UNIFORM_FLOAT);
-
-            BeginShaderMode(radialLightShader);
-                DrawTextureRec(
-                    mainTarget.texture,
-                    Rectangle{
-                        0.0f,
-                        0.0f,
-                        static_cast<float>(mainTarget.texture.width),
-                        static_cast<float>(-mainTarget.texture.height)
-                    },
-                    Vector2{0.0f, 0.0f},
-                    WHITE
-                );
-            EndShaderMode();
-
-            // Dialog handling
-            if (dialogActive && IsKeyPressed(KEY_SPACE)) {
-                if (dialogs[currentDialog].next == -1) {
-                    dialogActive = false;
-                } else {
-                    currentDialog = dialogs[currentDialog].next;
-                }
-            }
-
-            int textWidthDialog         = MeasureText(dialogs[currentDialog].text, fontSize);
-            int textWidthContinueDialog = MeasureText(continueDialog, fontSize);
-
-            // Only show dialog text if the torch has almost gone out
-            if (torchRadius < 1.0f) {
-                DrawText(
-                    dialogs[currentDialog].text,
-                    (screenWidth / 2) - (textWidthDialog / 2),
-                    screenHeight / 2,
-                    fontSize,
-                    WHITE
-                );
-                DrawText(
-                    continueDialog,
-                    (screenWidth / 2) - (textWidthContinueDialog / 2),
-                    screenHeight - 50,
-                    fontSize,
-                    DARKGRAY
-                );
-            }
-
-            // Optional debug: DrawFPS(10, 10)
+        ClearBackground(BLACK);
+        BeginMode2D(camera.getCamera());
+        background.draw();
+        midground.draw();
+        foreground.draw();
+        player.draw();
+        EndMode2D();
+        drawDebug();
         EndDrawing();
     }
 
-    // Unload resources
-    UnloadMusicStream(music);
-    CloseAudioDevice();
-    CloseWindow();
+    void shutdown()
+    {
+        CloseWindow();
+    }
 
+private:
+
+    void drawDebug (){
+        DrawCircle(camera.getCamera().offset.x,camera.getCamera().offset.y,20,RED);
+        DrawText(TextFormat("camera.offset.x: %f",camera.getCamera().offset.x),0,0,20,WHITE);
+        DrawText(TextFormat("camera.offset.y: %f",camera.getCamera().offset.y),0,20,20,WHITE);
+
+        DrawCircle(camera.getCamera().target.x,camera.getCamera().target.y,30,BLUE);
+        DrawText(TextFormat("camera.target.x: %f",camera.getCamera().target.x),0,40,20,WHITE);
+        DrawText(TextFormat("camera.target.y: %f",camera.getCamera().target.y),0,60,20,WHITE);
+
+        DrawCircle(player.getPosition().x,player.getPosition().y,20,GREEN);
+        DrawText(TextFormat("player.position.x: %f",player.getPosition().x),0,80,20,WHITE);
+        DrawText(TextFormat("player.position.y: %f",player.getPosition().y),0,100,20,WHITE);
+    }
+
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+int main()
+{
+    InitWindow(1280, 720, "Father and Son");
+    SetTargetFPS(60);
+    Game game;
+    game.initialize();
+    while (!WindowShouldClose())
+    {
+        game.update();
+        game.render();
+    }
+    game.shutdown();
     return 0;
 }
